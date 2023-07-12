@@ -109,10 +109,18 @@ for audio_file in audio_files:
                 break  # Once we found a matching turn for a segment, we can stop the inner loop
 
     # Save combined results to new JSON file
+     # Save combined results to new JSON file
     base_file_name, _ = os.path.splitext(audio_file)
     output_file_name = f"{base_file_name}_transcription.json"
     with open(output_file_name, "w") as file:
         json.dump(combined_results, file)
+
+    # Save combined results to new text file
+    output_text_file_name = f"{base_file_name}_transcription.txt"
+    with open(output_text_file_name, "w") as file:
+        for result in combined_results:
+            file.write(f"{result['speaker']}: {result['text']}\n")
+
 
 end_time = time.time()
 execution_time = end_time - start_time
