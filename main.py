@@ -108,7 +108,6 @@ for audio_file in audio_files:
                     prev_end = seg['end']
                 break  # Once we found a matching turn for a segment, we can stop the inner loop
 
-    # Save combined results to new JSON file
      # Save combined results to new JSON file
     base_file_name, _ = os.path.splitext(audio_file)
     output_file_name = f"{base_file_name}_transcription.json"
