@@ -55,19 +55,23 @@ for audio_file in audio_files:
         wave.open(audio_file, 'rb')
     except wave.Error as e:
         raise ValueError(f"Could not open {audio_file} as a .wav file: {e}")
-
-    # Load whisper model and transcribe audio
-    model = whisper.load_model("medium")
+    torch.cuda.init()
+    torch.cuda.empty_cache()
+    print(torch.cuda.is_initialized())
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Load whisper model and transcribe audi
+    model = whisper.load_model("medium", device=device)
     result = {
         "transcription": model.transcribe(audio_file),
     }
-
+    
     # Save transcription to JSON file
     with open(f"{audio_file}_output.json", "w") as f:
         json.dump(result, f)
 
     # Load pretrained diarization pipeline
     pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_token=os.environ["HF_TOKEN"])
+    torch.cuda.empty_cache()
     pipeline.to(torch.device('cuda'))
 
     # Apply pipeline to audio file
@@ -108,6 +112,7 @@ for audio_file in audio_files:
                     prev_end = seg['end']
                 break  # Once we found a matching turn for a segment, we can stop the inner loop
 
+    # Save combined results to new JSON file
      # Save combined results to new JSON file
     base_file_name, _ = os.path.splitext(audio_file)
     output_file_name = f"{base_file_name}_transcription.json"
@@ -116,11 +121,13 @@ for audio_file in audio_files:
 
     # Save combined results to new text file
     output_text_file_name = f"{base_file_name}_transcription.txt"
-    with open(output_text_file_name, "w") as file:
+    with open(output_text_file_name, "w", encoding='utf-8') as file:
         for result in combined_results:
             file.write(f"{result['speaker']}: {result['text']}\n")
 
 
 end_time = time.time()
 execution_time = end_time - start_time
-print(f"Execution time: {execution_time} seconds")
+execution_time_minutes = execution_time / 60
+print(f"Execution time: {execution_time_minutes} minutes")
+

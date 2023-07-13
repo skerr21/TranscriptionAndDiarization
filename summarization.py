@@ -36,4 +36,4 @@ def summarize_text_file(file_path, max_length=130, min_length=30, do_sample=Fals
 
     return summaries
 
-print(summarize_text_file('converttest_transcription.txt'))
+print(summarize_text_file('A Story Told, A Hero Cold (12-14-2020)_transcription.txt'))
