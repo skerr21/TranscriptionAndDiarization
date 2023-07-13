@@ -177,7 +177,8 @@ for audio_file in audio_files:
 # Stop the playback after 7 seconds
             stop_thread = threading.Thread(target=stop_playback, args=(play_obj, 7))
             stop_thread.start()
-            stop_thread.end()
+
+            os.remove("temp_clip.wav")
 
 
             # Ask for the identification of the speaker, only if it has not been identified before
