@@ -10,46 +10,21 @@ import simpleaudio as sa
 from pyannote.core import Timeline, Segment
 from pyannote.audio import Pipeline
 from pydub import AudioSegment
+from concurrent.futures import ThreadPoolExecutor
+import ffmpeg
 
 
 # Function to check if intervals overlap
 def overlap(interval_a, interval_b):
     return max(0, min(interval_a[1], interval_b[1]) - max(interval_a[0], interval_b[0]))
 
+
 def stop_playback(play_obj, duration):
     time.sleep(duration)
     play_obj.stop()
 
 
-start_time = time.time()
-
-# List all audio and video files in the directory
-directory = 'F:/transcriber test'  # replace with your directory path
-audio_files = glob.glob(os.path.join(directory, '*.wav')) + \
-              glob.glob(os.path.join(directory, '*.mp3')) + \
-              glob.glob(os.path.join(directory, '*.aac')) + \
-              glob.glob(os.path.join(directory, '*.ogg')) + \
-              glob.glob(os.path.join(directory, '*.flac')) + \
-              glob.glob(os.path.join(directory, '*.m4a')) + \
-              glob.glob(os.path.join(directory, '*.wma')) + \
-              glob.glob(os.path.join(directory, '*.opus')) + \
-              glob.glob(os.path.join(directory, '*.alac')) + \
-              glob.glob(os.path.join(directory, '*.mp4')) + \
-              glob.glob(os.path.join(directory, '*.avi')) + \
-              glob.glob(os.path.join(directory, '*.mkv')) + \
-              glob.glob(os.path.join(directory, '*.flv')) + \
-              glob.glob(os.path.join(directory, '*.mov')) + \
-              glob.glob(os.path.join(directory, '*.wmv')) + \
-              glob.glob(os.path.join(directory, '*.webm'))
-
-for audio_file in audio_files:
-
-    # Skip temporary files
-    if 'temp_clip.wav' in audio_file:
-        continue
-
-    # Rest of the code...
-
+def transcribe_audio(audio_file):
     # Get the base file name
     base_file_name, extension = os.path.splitext(audio_file)
     transcription_file_name = f"{base_file_name}_transcription.json"
@@ -57,14 +32,15 @@ for audio_file in audio_files:
     # Check if a transcription already exists
     if os.path.exists(transcription_file_name):
         print(f"Transcription already exists for {audio_file}")
-        continue  # skip this file and go to the next one
+        return  # skip this file and go to the next one
 
     # Check if the file is in .wav format
     if extension.lower() != '.wav':
-        # If not, convert it to .wav
-        audio = AudioSegment.from_file(audio_file)
+        # If not, convert it to .wav on-the-fly
+        stream = ffmpeg.input(audio_file)
         audio_file = base_file_name + '.wav'
-        audio.export(audio_file, format='wav')
+        stream = ffmpeg.output(stream, audio_file)
+        ffmpeg.run(stream, overwrite_output=True)
         print(f"Converted {audio_file} to .wav format.")
 
     # Check if the converted file is readable as a .wav file
@@ -174,12 +150,11 @@ for audio_file in audio_files:
             wave_obj = sa.WaveObject.from_wave_file(clip_file)
             play_obj = wave_obj.play()
 
-# Stop the playback after 7 seconds
+            # Stop the playback after 7 seconds
             stop_thread = threading.Thread(target=stop_playback, args=(play_obj, 7))
             stop_thread.start()
 
             os.remove("temp_clip.wav")
-
 
             # Ask for the identification of the speaker, only if it has not been identified before
             if result['speaker'] not in identified_speakers:
@@ -191,6 +166,41 @@ for audio_file in audio_files:
             # Use the identified name if available, otherwise use the original label
             speaker_name = identified_speakers.get(result['speaker'], result['speaker'])
             file.write(f"{speaker_name}: {result['text']}\n")
+
+
+start_time = time.time()
+
+# List all audio and video files in the directory
+directory = 'F:/transcriber test'  # replace with your directory path
+audio_files = glob.glob(os.path.join(directory, '*.wav')) + \
+              glob.glob(os.path.join(directory, '*.mp3')) + \
+              glob.glob(os.path.join(directory, '*.aac')) + \
+              glob.glob(os.path.join(directory, '*.ogg')) + \
+              glob.glob(os.path.join(directory, '*.flac')) + \
+              glob.glob(os.path.join(directory, '*.m4a')) + \
+              glob.glob(os.path.join(directory, '*.wma')) + \
+              glob.glob(os.path.join(directory, '*.opus')) + \
+              glob.glob(os.path.join(directory, '*.alac')) + \
+              glob.glob(os.path.join(directory, '*.mp4')) + \
+              glob.glob(os.path.join(directory, '*.avi')) + \
+              glob.glob(os.path.join(directory, '*.mkv')) + \
+              glob.glob(os.path.join(directory, '*.flv')) + \
+              glob.glob(os.path.join(directory, '*.mov')) + \
+              glob.glob(os.path.join(directory, '*.wmv')) + \
+              glob.glob(os.path.join(directory, '*.webm'))
+
+# Create a list of audio files that need to be transcribed
+transcription_files = []
+for audio_file in audio_files:
+    base_file_name, extension = os.path.splitext(audio_file)
+    transcription_file_name = f"{base_file_name}_transcription.json"
+    if not os.path.exists(transcription_file_name):
+        transcription_files.append(audio_file)
+
+# Transcribe and diarize audio files using multi-threading
+with ThreadPoolExecutor(max_workers=4) as executor:
+    for _ in executor.map(transcribe_audio, transcription_files):
+        pass
 
 end_time = time.time()
 execution_time = end_time - start_time
