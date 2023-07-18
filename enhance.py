@@ -20,10 +20,11 @@ def enhance_wav(file_name):
     noisy = enhance_model.load_audio(file_name).unsqueeze(0)
 
     # Add relative length tensor
-    enhanced = enhance_model.enhance_batch(noisy, lengths=torch.tensor([1.]))
+    enhanced = enhance_model.enhance_batch(noisy, lengths=torch.tensor([1.0]))
+    
 
     # Saving enhanced signal on disk
-    torchaudio.save(output_path, enhanced.cpu(), 16000, format="wav")
+    torchaudio.save(output_path, enhanced.cpu(), 16000)
 
     # Return the path of the enhanced file
     return output_path

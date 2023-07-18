@@ -5,6 +5,7 @@ import ffmpeg
 import torch
 import simpleaudio as sa
 import uuid
+from pydub import AudioSegment
 from pyannote.audio import Pipeline
 from faster_whisper import WhisperModel
 from utils import overlap, stop_playback
@@ -133,9 +134,13 @@ def transcribe_audio(audio_file):
                 clip_duration_s = end_time_s - start_time_s
                 if clip_duration_s > 3:
                     clip_duration_s = 3  # adjust clip duration to get a 7 second clip
+                print(enhanced_file)
+                audio = AudioSegment.from_file(audio_file)
+                wav_file = base_file_name + '_enhanced.wav'
+                audio.export(wav_file, format="wav")
 
                 # Convert start and end times to frame numbers
-                with wave.open(enhanced_file, 'rb') as audio:
+                with wave.open(wav_file, 'rb') as audio:
                     frames_per_second = audio.getframerate()
                     start_frame = int(start_time_s * frames_per_second)
                     num_frames = int(clip_duration_s * frames_per_second)  # calculate the number of frames for 7 seconds
@@ -159,6 +164,7 @@ def transcribe_audio(audio_file):
                 stop_playback(play_obj, 3)
 
                 os.remove(clip_file)
+                # os.remove(wav_file)
 
                 print(f"Text spoken by {result['speaker']}: {result['text']}")
                 speaker_id = input(f"Who is {result['speaker']}? ")
