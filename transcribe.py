@@ -2,12 +2,13 @@ import os
 import wave
 import json
 import ffmpeg
-from pyannote.audio import Pipeline
 import torch
-from faster_whisper import WhisperModel
-from utils import overlap, stop_playback
 import simpleaudio as sa
 import uuid
+from pyannote.audio import Pipeline
+from faster_whisper import WhisperModel
+from utils import overlap, stop_playback
+from enhance import enhance_wav
 
 
 def transcribe_audio(audio_file):
@@ -43,12 +44,13 @@ def transcribe_audio(audio_file):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model_size = "medium"
-
+    print(audio_file)
+    enhanced_file = enhance_wav(audio_file)
     # Run on GPU with FP16
     model = WhisperModel(model_size, device="cuda", compute_type="float32")
 
-    # Transcribe the audio file
-    segments, info = model.transcribe(audio_file, beam_size=5, word_timestamps=True)
+    # Transcribe the enhanced audio file
+    segments, info = model.transcribe(enhanced_file, beam_size=5, word_timestamps=True)
 
     # Convert segments to a list of dictionaries
     segments_list = [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]
@@ -62,7 +64,7 @@ def transcribe_audio(audio_file):
     }
 
     # Save transcription to JSON file
-    with open(f"{audio_file}_output.json", "w") as f:
+    with open(f"{enhanced_file}_output.json", "w") as f:
         json.dump(result, f)
 
     # Load pretrained diarization pipeline
@@ -70,11 +72,11 @@ def transcribe_audio(audio_file):
     torch.cuda.empty_cache()
     pipeline.to(torch.device('cuda'))
 
-    # Apply pipeline to audio file
-    diarization = pipeline(audio_file)
+    # Apply pipeline to enhanced audio file
+    diarization = pipeline(enhanced_file)
 
     # Load transcription from JSON file
-    with open(f"{audio_file}_output.json", "r") as file:
+    with open(f"{enhanced_file}_output.json", "r") as file:
         output_data = json.load(file)
 
     transcription = output_data['transcription']
@@ -109,7 +111,7 @@ def transcribe_audio(audio_file):
                 break  # Once we found a matching turn for a segment, we can stop the inner loop
 
     # Save combined results to new JSON file
-    base_file_name, _ = os.path.splitext(audio_file)
+    base_file_name, _ = os.path.splitext(enhanced_file)
     output_file_name = f"{base_file_name}_transcription.json"
     with open(output_file_name, "w") as file:
         json.dump(combined_results, file)
@@ -121,43 +123,43 @@ def transcribe_audio(audio_file):
     output_text_file_name = f"{base_file_name}_transcription.txt"
     with open(output_text_file_name, "w", encoding='utf-8') as file:
         for result in combined_results:
-            # Cut the clip for the current speaker
-            start_time_s = result['start']  # start time in seconds
-            end_time_s = result['end']  # end time in seconds
-
-            # Calculate the duration and trim it to 7 seconds if it's longer
-            clip_duration_s = end_time_s - start_time_s
-            if clip_duration_s > 3:
-                clip_duration_s = 3  # adjust clip duration to get a 7 second clip
-
-            # Convert start and end times to frame numbers
-            with wave.open(audio_file, 'rb') as audio:
-                frames_per_second = audio.getframerate()
-                start_frame = int(start_time_s * frames_per_second)
-                num_frames = int(clip_duration_s * frames_per_second)  # calculate the number of frames for 7 seconds
-                audio.setpos(start_frame)
-                frames = audio.readframes(num_frames)  # read only the number of frames for 7 seconds
-
-            # Save the clip to a temporary file
-            clip_file = "temp_clip.wav"
-            with wave.open(clip_file, 'wb') as clip:
-                clip.setnchannels(audio.getnchannels())
-                clip.setsampwidth(audio.getsampwidth())
-                clip.setframerate(frames_per_second)
-                clip.writeframes(frames)
-
-            # Play the clip
-            wave_obj = sa.WaveObject.from_wave_file(clip_file)
-            play_obj = wave_obj.play()
-
-            # Stop the playback after 7 seconds
-            print(f"About to stop playback for clip starting at {start_time_s}...")
-            stop_playback(play_obj, 3)
-
-            os.remove(clip_file)
-
             # Ask for the identification of the speaker, only if it has not been identified before
             if result['speaker'] not in identified_speakers:
+                # Cut the clip for the current speaker
+                start_time_s = result['start']  # start time in seconds
+                end_time_s = result['end']  # end time in seconds
+
+                # Calculate the duration and trim it to 7 seconds if it's longer
+                clip_duration_s = end_time_s - start_time_s
+                if clip_duration_s > 3:
+                    clip_duration_s = 3  # adjust clip duration to get a 7 second clip
+
+                # Convert start and end times to frame numbers
+                with wave.open(enhanced_file, 'rb') as audio:
+                    frames_per_second = audio.getframerate()
+                    start_frame = int(start_time_s * frames_per_second)
+                    num_frames = int(clip_duration_s * frames_per_second)  # calculate the number of frames for 7 seconds
+                    audio.setpos(start_frame)
+                    frames = audio.readframes(num_frames)  # read only the number of frames for 7 seconds
+
+                # Save the clip to a temporary file
+                clip_file = "temp_clip.wav"
+                with wave.open(clip_file, 'wb') as clip:
+                    clip.setnchannels(audio.getnchannels())
+                    clip.setsampwidth(audio.getsampwidth())
+                    clip.setframerate(frames_per_second)
+                    clip.writeframes(frames)
+
+                # Play the clip
+                wave_obj = sa.WaveObject.from_wave_file(clip_file)
+                play_obj = wave_obj.play()
+
+                # Stop the playback after 7 seconds
+                print(f"About to stop playback for clip starting at {start_time_s}...")
+                stop_playback(play_obj, 3)
+
+                os.remove(clip_file)
+
                 print(f"Text spoken by {result['speaker']}: {result['text']}")
                 speaker_id = input(f"Who is {result['speaker']}? ")
                 identified_speakers[result['speaker']] = speaker_id
