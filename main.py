@@ -2,25 +2,22 @@ import os
 import glob
 import wave
 import time
-import whisper
-import torch
 import json
+import ffmpeg
 import simpleaudio as sa
 from pyannote.core import Timeline, Segment
 from pyannote.audio import Pipeline
 from pydub import AudioSegment
-import ffmpeg
-
+import torch
+from faster_whisper import WhisperModel
 
 # Function to check if intervals overlap
 def overlap(interval_a, interval_b):
     return max(0, min(interval_a[1], interval_b[1]) - max(interval_a[0], interval_b[0]))
 
-
 def stop_playback(play_obj, duration):
     time.sleep(duration)
     play_obj.stop()
-
 
 def transcribe_audio(audio_file):
     # Get the base file name
@@ -54,10 +51,23 @@ def transcribe_audio(audio_file):
     print(torch.cuda.is_initialized())
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Load whisper model and transcribe audio
-    model = whisper.load_model("large-v2", device=device)
+    model_size = "large-v2"
+
+    # Run on GPU with FP16
+    model = WhisperModel(model_size, device="cuda", compute_type="float32")
+
+    # Transcribe the audio file
+    segments, info = model.transcribe(audio_file, beam_size=5, word_timestamps=True)
+
+    # Convert segments to a list of dictionaries
+    segments_list = [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]
+
     result = {
-        "transcription": model.transcribe(audio_file),
+        "transcription": segments_list,
+        "info": {
+            "language": info.language,
+            "language_probability": info.language_probability
+        }
     }
 
     # Save transcription to JSON file
@@ -76,7 +86,7 @@ def transcribe_audio(audio_file):
     with open(f"{audio_file}_output.json", "r") as file:
         output_data = json.load(file)
 
-    transcription = output_data['transcription']['segments']
+    transcription = output_data['transcription']
 
     # Store combined results
     combined_results = []
@@ -163,7 +173,6 @@ def transcribe_audio(audio_file):
             # Use the identified name if available, otherwise use the original label
             speaker_name = identified_speakers.get(result['speaker'], result['speaker'])
             file.write(f"{speaker_name}: {result['text']}\n")
-
 
 start_time = time.time()
 
