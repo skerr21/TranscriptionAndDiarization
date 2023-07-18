@@ -1,4 +1,3 @@
-# transcribe.py
 import os
 import wave
 import json
@@ -116,7 +115,7 @@ def transcribe_audio(audio_file):
         json.dump(combined_results, file)
 
     identified_speakers = {}
-    clip_uuid = uuid.uuid4()  
+    clip_uuid = uuid.uuid4()
     clip_file = f"temp_clip_{clip_uuid}.wav"
     # Save combined results to new text file
     output_text_file_name = f"{base_file_name}_transcription.txt"
@@ -128,8 +127,8 @@ def transcribe_audio(audio_file):
 
             # Calculate the duration and trim it to 7 seconds if it's longer
             clip_duration_s = end_time_s - start_time_s
-            if clip_duration_s > 7:
-                clip_duration_s = 7  # adjust clip duration to get a 7 second clip
+            if clip_duration_s > 3:
+                clip_duration_s = 3  # adjust clip duration to get a 7 second clip
 
             # Convert start and end times to frame numbers
             with wave.open(audio_file, 'rb') as audio:
@@ -152,7 +151,8 @@ def transcribe_audio(audio_file):
             play_obj = wave_obj.play()
 
             # Stop the playback after 7 seconds
-            stop_playback(play_obj, 7)
+            print(f"About to stop playback for clip starting at {start_time_s}...")
+            stop_playback(play_obj, 3)
 
             os.remove(clip_file)
 
@@ -162,6 +162,11 @@ def transcribe_audio(audio_file):
                 speaker_id = input(f"Who is {result['speaker']}? ")
                 identified_speakers[result['speaker']] = speaker_id
                 print(f"You identified {result['speaker']} as: {speaker_id}")
+
+            # If all speakers are identified, stop playing new clips
+            if len(identified_speakers) == len(set(result['speaker'] for result in combined_results)):
+                print("All speakers have been identified. Stopping playback.")
+                break
 
             # Use the identified name if available, otherwise use the original label
             speaker_name = identified_speakers.get(result['speaker'], result['speaker'])

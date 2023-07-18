@@ -2,7 +2,7 @@ from transformers import pipeline
 
 def summarize_text_file(file_path, max_length=130, min_length=30, do_sample=False):
     # Initialize the summarizer
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+    summarizer = pipeline("summarization", model="pszemraj/pegasus-x-large-book-summary")
     
     # Read the contents of the file
     with open(file_path, 'r') as file:

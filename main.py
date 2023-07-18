@@ -1,14 +1,8 @@
 import os
 import glob
-import wave
 import time
-import json
-import ffmpeg
-
-from pyannote.core import Timeline, Segment
 from pyannote.audio import Pipeline
 from pydub import AudioSegment
-import torch
 from faster_whisper import WhisperModel
 from transcribe import transcribe_audio
 
