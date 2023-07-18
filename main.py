@@ -5,12 +5,10 @@ import time
 import whisper
 import torch
 import json
-import threading
 import simpleaudio as sa
 from pyannote.core import Timeline, Segment
 from pyannote.audio import Pipeline
 from pydub import AudioSegment
-from concurrent.futures import ThreadPoolExecutor
 import ffmpeg
 
 
@@ -57,7 +55,7 @@ def transcribe_audio(audio_file):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load whisper model and transcribe audio
-    model = whisper.load_model("medium", device=device)
+    model = whisper.load_model("large-v2", device=device)
     result = {
         "transcription": model.transcribe(audio_file),
     }
@@ -151,8 +149,7 @@ def transcribe_audio(audio_file):
             play_obj = wave_obj.play()
 
             # Stop the playback after 7 seconds
-            stop_thread = threading.Thread(target=stop_playback, args=(play_obj, 7))
-            stop_thread.start()
+            stop_playback(play_obj, 7)
 
             os.remove("temp_clip.wav")
 
@@ -197,10 +194,9 @@ for audio_file in audio_files:
     if not os.path.exists(transcription_file_name):
         transcription_files.append(audio_file)
 
-# Transcribe and diarize audio files using multi-threading
-with ThreadPoolExecutor(max_workers=4) as executor:
-    for _ in executor.map(transcribe_audio, transcription_files):
-        pass
+# Transcribe and diarize audio files
+for audio_file in transcription_files:
+    transcribe_audio(audio_file)
 
 end_time = time.time()
 execution_time = end_time - start_time
