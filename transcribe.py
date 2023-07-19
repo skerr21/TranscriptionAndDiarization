@@ -164,7 +164,7 @@ def transcribe_audio(audio_file):
                 stop_playback(play_obj, 3)
 
                 os.remove(clip_file)
-                # os.remove(wav_file)
+                os.remove(enhanced_file)
 
                 print(f"Text spoken by {result['speaker']}: {result['text']}")
                 speaker_id = input(f"Who is {result['speaker']}? ")
