@@ -46,7 +46,7 @@ def transcribe_audio(audio_file):
 
     model_size = "medium"
     print(audio_file)
-    enhanced_file = enhance_wav(audio_file)
+    enhanced_file = enhance_wav(audio_file, False)
     # Run on GPU with FP16
     model = WhisperModel(model_size, device="cuda", compute_type="float32")
 

@@ -9,22 +9,24 @@ enhance_model = SpectralMaskEnhancement.from_hparams(
     run_opts={"device": "cuda:0"},
 )
 
-def enhance_wav(file_name):
+def enhance_wav(input_path, enhance=True):
     # Get the basename of the input file
-    
-    
-    # Construct the output file path
-    output_path = f"{file_name}_enhanced.wav"
-    file_name = os.path.basename(file_name)
-    # Load and add fake batch dimension
-    noisy = enhance_model.load_audio(file_name).unsqueeze(0)
+    waveform, sample_rate = torchaudio.load(input_path)
 
-    # Add relative length tensor
-    enhanced = enhance_model.enhance_batch(noisy, lengths=torch.tensor([1.0]))
-    
+    # Enhance the audio if requested
+    if enhance:
+        # Load the denoiser model
+        file_name = os.path.basename(input_path)
+        output_path = f"{file_name}_enhanced.wav"
+        noisy = enhance_model.load_audio(file_name).unsqueeze(0)
 
-    # Saving enhanced signal on disk
-    torchaudio.save(output_path, enhanced.cpu(), 16000)
+        # Add relative length tensor
+        enhanced = enhance_model.enhance_batch(noisy, lengths=torch.tensor([1.]))
 
-    # Return the path of the enhanced file
-    return output_path
+        # Saving enhanced signal on disk
+        torchaudio.save(output_path, enhanced.cpu(), 16000)
+        
+        # Return the path of the enhanced file
+        return output_path
+    else:
+        return input_path
