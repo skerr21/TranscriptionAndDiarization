@@ -122,54 +122,63 @@ def transcribe_audio(audio_file):
     clip_file = f"temp_clip_{clip_uuid}.wav"
     # Save combined results to new text file
     output_text_file_name = f"{base_file_name}_transcription.txt"
+     
     with open(output_text_file_name, "w", encoding='utf-8') as file:
         for result in combined_results:
             # Ask for the identification of the speaker, only if it has not been identified before
             if result['speaker'] not in identified_speakers:
-                # Cut the clip for the current speaker
-                start_time_s = result['start']  # start time in seconds
-                end_time_s = result['end']  # end time in seconds
+                repeat_clip = True
+                while repeat_clip:
+                    # Cut the clip for the current speaker
+                    start_time_s = result['start']  # start time in seconds
+                    end_time_s = result['end']  # end time in seconds
 
-                # Calculate the duration and trim it to 7 seconds if it's longer
-                clip_duration_s = end_time_s - start_time_s
-                if clip_duration_s > 3:
-                    clip_duration_s = 3  # adjust clip duration to get a 7 second clip
-                print(enhanced_file)
-                audio = AudioSegment.from_file(audio_file)
-                wav_file = base_file_name + '_enhanced.wav'
-                audio.export(wav_file, format="wav")
+                    # Calculate the duration and trim it to 7 seconds if it's longer
+                    clip_duration_s = end_time_s - start_time_s
+                    if clip_duration_s > 3:
+                        clip_duration_s = 3  # adjust clip duration to get a 7 second clip
+                    
+                    print(enhanced_file)
+                    audio = AudioSegment.from_file(audio_file)
+                    wav_file = base_file_name + '_enhanced.wav'
+                    audio.export(wav_file, format="wav")
 
-                # Convert start and end times to frame numbers
-                with wave.open(wav_file, 'rb') as audio:
-                    frames_per_second = audio.getframerate()
-                    start_frame = int(start_time_s * frames_per_second)
-                    num_frames = int(clip_duration_s * frames_per_second)  # calculate the number of frames for 7 seconds
-                    audio.setpos(start_frame)
-                    frames = audio.readframes(num_frames)  # read only the number of frames for 7 seconds
+                    # Convert start and end times to frame numbers
+                    with wave.open(wav_file, 'rb') as audio:
+                        frames_per_second = audio.getframerate()
+                        start_frame = int(start_time_s * frames_per_second)
+                        num_frames = int(clip_duration_s * frames_per_second)  # calculate the number of frames for 7 seconds
+                        audio.setpos(start_frame)
+                        frames = audio.readframes(num_frames)  # read only the number of frames for 7 seconds
 
-                # Save the clip to a temporary file
-                clip_file = "temp_clip.wav"
-                with wave.open(clip_file, 'wb') as clip:
-                    clip.setnchannels(audio.getnchannels())
-                    clip.setsampwidth(audio.getsampwidth())
-                    clip.setframerate(frames_per_second)
-                    clip.writeframes(frames)
+                    # Save the clip to a temporary file
+                    clip_file = "temp_clip.wav"
+                    with wave.open(clip_file, 'wb') as clip:
+                        clip.setnchannels(audio.getnchannels())
+                        clip.setsampwidth(audio.getsampwidth())
+                        clip.setframerate(frames_per_second)
+                        clip.writeframes(frames)
 
-                # Play the clip
-                wave_obj = sa.WaveObject.from_wave_file(clip_file)
-                play_obj = wave_obj.play()
+                    # Play the clip
+                    wave_obj = sa.WaveObject.from_wave_file(clip_file)
+                    play_obj = wave_obj.play()
 
-                # Stop the playback after 7 seconds
-                print(f"About to stop playback for clip starting at {start_time_s}...")
-                stop_playback(play_obj, 3)
+                    # Stop the playback after 7 seconds
+                    print(f"About to stop playback for clip starting at {start_time_s}...")
+                    stop_playback(play_obj, 3)
 
-                os.remove(clip_file)
-                os.remove(enhanced_file)
+                    os.remove(clip_file)
+                    os.remove(enhanced_file)
 
-                print(f"Text spoken by {result['speaker']}: {result['text']}")
-                speaker_id = input(f"Who is {result['speaker']}? ")
-                identified_speakers[result['speaker']] = speaker_id
-                print(f"You identified {result['speaker']} as: {speaker_id}")
+                    print(f"Text spoken by {result['speaker']}: {result['text']}")
+                    speaker_id = input(f"Who is {result['speaker']}? (If you want to listen again, type 'repeat') ")
+                    
+                    if speaker_id.lower() == 'repeat':
+                        print("Repeating the audio clip...")
+                    else:
+                        identified_speakers[result['speaker']] = speaker_id
+                        print(f"You identified {result['speaker']} as: {speaker_id}")
+                        repeat_clip = False
 
             # If all speakers are identified, stop playing new clips
             if len(identified_speakers) == len(set(result['speaker'] for result in combined_results)):
