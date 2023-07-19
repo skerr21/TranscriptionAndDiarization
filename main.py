@@ -6,7 +6,6 @@ from pydub import AudioSegment
 from faster_whisper import WhisperModel
 from transcribe import transcribe_audio
 
-
 start_time = time.time()
 
 # List all audio and video files in the directory

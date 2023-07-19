@@ -10,4 +10,3 @@ def stop_playback(play_obj, duration):
     print("Stopping playback...")
     play_obj.stop()
     print("Playback stopped.")
-
