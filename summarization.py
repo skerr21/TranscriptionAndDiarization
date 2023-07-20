@@ -1,8 +1,10 @@
+import os
 from transformers import pipeline
+
 
 def summarize_text_file(file_path, max_length=130, min_length=30, do_sample=False):
     # Initialize the summarizer
-    summarizer = pipeline("summarization", model="pszemraj/pegasus-x-large-book-summary")
+    summarizer = pipeline("summarization", model="knkarthick/MEETING_SUMMARY")
     
     # Read the contents of the file
     with open(file_path, 'r') as file:
@@ -33,11 +35,11 @@ def summarize_text_file(file_path, max_length=130, min_length=30, do_sample=Fals
 
     # Create a single string from all chunk summaries
     all_summaries_text = ' '.join(chunk_summaries)
-    
+    print("All Summaries Text: " + all_summaries_text)
     # Create an overall summary of the chunk summaries
     overall_summary = summarizer(all_summaries_text, max_length=max_length, min_length=min_length, do_sample=do_sample)
 
     return overall_summary
 
 
-print(summarize_text_file('Revenge is a Dish Best Served Twenty-Seven Times (4-7-2021)_transcription.txt'))
+print(summarize_text_file('hourtest_enhanced_transcription.txt'))
