@@ -146,11 +146,11 @@ def transcribe_audio(audio_file):
                 clip.setframerate(frames_per_second)
                 clip.writeframes(frames)
 
-            # Play the audio clip
+            # Play the clip
             wave_obj = sa.WaveObject.from_wave_file(clip_file)
             play_obj = wave_obj.play()
 
-                # Stop the playback after 7 seconds
+            # Stop the playback after 7 seconds
             print(f"About to stop playback for clip starting at {start_time_s}...")
             stop_playback(play_obj, 3)
 
@@ -164,14 +164,10 @@ def transcribe_audio(audio_file):
                 print(f"You identified {result['speaker']} as: {speaker_id}")
 
             # If all speakers are identified, stop playing new clips
-            # Move this check here, outside the 'if' condition above
             if len(identified_speakers) == len(set(result['speaker'] for result in combined_results)):
                 print("All speakers have been identified. Stopping playback.")
                 break
 
-    # Use the identified name if available, otherwise use the original label
+            # Use the identified name if available, otherwise use the original label
             speaker_name = identified_speakers.get(result['speaker'], result['speaker'])
-            try:
-                file.write(f"{speaker_name}: {result['text']}\n")
-            except UnicodeEncodeError:
-                print("UnicodeEncodeError occurred. Skipping this line.")
+            file.write(f"{speaker_name}: {result['text']}\n")
