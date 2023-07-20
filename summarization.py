@@ -1,45 +1,43 @@
-import os
-import glob
-import time
-from pyannote.audio import Pipeline
-from pydub import AudioSegment
-from faster_whisper import WhisperModel
-from transcribe import transcribe_audio
+from transformers import pipeline
 
-start_time = time.time()
+def summarize_text_file(file_path, max_length=130, min_length=30, do_sample=False):
+    # Initialize the summarizer
+    summarizer = pipeline("summarization", model="pszemraj/pegasus-x-large-book-summary")
+    
+    # Read the contents of the file
+    with open(file_path, 'r') as file:
+        text = file.read()
 
-# List all audio and video files in the directory
-directory = 'F:/transcriber test'  # replace with your directory path
-audio_files = glob.glob(os.path.join(directory, '*.wav')) + \
-              glob.glob(os.path.join(directory, '*.mp3')) + \
-              glob.glob(os.path.join(directory, '*.aac')) + \
-              glob.glob(os.path.join(directory, '*.ogg')) + \
-              glob.glob(os.path.join(directory, '*.flac')) + \
-              glob.glob(os.path.join(directory, '*.m4a')) + \
-              glob.glob(os.path.join(directory, '*.wma')) + \
-              glob.glob(os.path.join(directory, '*.opus')) + \
-              glob.glob(os.path.join(directory, '*.alac')) + \
-              glob.glob(os.path.join(directory, '*.mp4')) + \
-              glob.glob(os.path.join(directory, '*.avi')) + \
-              glob.glob(os.path.join(directory, '*.mkv')) + \
-              glob.glob(os.path.join(directory, '*.flv')) + \
-              glob.glob(os.path.join(directory, '*.mov')) + \
-              glob.glob(os.path.join(directory, '*.wmv')) + \
-              glob.glob(os.path.join(directory, '*.webm'))
+    # Tokenize the text to get the tokens
+    tokens = summarizer.tokenizer(text, return_tensors='pt', truncation=False)['input_ids'][0]
 
-# Create a list of audio files that need to be transcribed
-transcription_files = []
-for audio_file in audio_files:
-    base_file_name, extension = os.path.splitext(audio_file)
-    transcription_file_name = f"{base_file_name}_transcription.json"
-    if not os.path.exists(transcription_file_name):
-        transcription_files.append(audio_file)
+    # Split the tokens into chunks of max_length
+    chunks = [tokens[i:i + 1024] for i in range(0, len(tokens), 1024)]
 
-# Transcribe and diarize audio files
-for audio_file in transcription_files:
-    transcribe_audio(audio_file)
+    # Summarize each chunk
+    chunk_summaries = []
+    for chunk in chunks:
+        # Convert the tokens back to text
+        chunk_text = summarizer.tokenizer.decode(chunk)
+        
+        # Check if the chunk_text is not empty
+        if chunk_text.strip():
+            try:
+                # Summarize the chunk text
+                summary = summarizer(chunk_text, max_length=max_length, min_length=min_length, do_sample=do_sample)
+                # Add the summary to the list of summaries
+                chunk_summaries.append(summary[0]['summary_text'])
+            except IndexError as e:
+                print(f"Error while processing chunk: {e}")
+                print(f"Contents of chunk: {chunk_text}")
 
-end_time = time.time()
-execution_time = end_time - start_time
-execution_time_minutes = execution_time / 60
-print(f"Execution time: {execution_time_minutes} minutes")
+    # Create a single string from all chunk summaries
+    all_summaries_text = ' '.join(chunk_summaries)
+    
+    # Create an overall summary of the chunk summaries
+    overall_summary = summarizer(all_summaries_text, max_length=max_length, min_length=min_length, do_sample=do_sample)
+
+    return overall_summary
+
+
+print(summarize_text_file('Revenge is a Dish Best Served Twenty-Seven Times (4-7-2021)_transcription.txt'))
